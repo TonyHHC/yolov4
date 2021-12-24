@@ -1,5 +1,6 @@
 import glob, os
 import os.path
+import subprocess
 import time
 import re
 from shutil import copyfile
@@ -34,6 +35,8 @@ batch = ''
 subdivisions = ''
 width = ''
 height = ''
+numclusters = []
+anchors = ''
 #--------------------------------------------------------------------
 
 def getXmlChildNodeValue(nodeParent, tag):
@@ -82,8 +85,9 @@ def ReadParameter(strFilename='00_parameter.xml'):
 	subdivisions = getXmlChildNodeValue(root, 'subdivisions')
 	width = getXmlChildNodeValue(root, 'width')
 	height = getXmlChildNodeValue(root, 'height')
+	numclusters = getXmlChildNodeValue(root, 'numclusters')
 	
-	return namesFile, datasFile, configFile, traincommandfile, weightsFolder, xmllabelFolder, imgFolder, txtlabelFolder, txtFile, darkhome, config, pretrained, batch, subdivisions, width, height, classList
+	return namesFile, datasFile, configFile, traincommandfile, weightsFolder, xmllabelFolder, imgFolder, txtlabelFolder, txtFile, darkhome, config, pretrained, batch, subdivisions, width, height, numclusters, classList
 		
 def transferYolo( xmlFilepath, imgFilepath, txtlabelFilepath, classList):
 
@@ -199,7 +203,7 @@ def create_data(datasFilePath, classList, txtFile, namesFile, weightsFolder):
 		the_file.write("backup = " + weightsFolder + "/")
 	the_file.close()
 	
-def create_config(darkhome, config, configFile, datasFile, classList, batch, subdivisions, width, height):
+def create_config(darkhome, config, configFile, datasFile, classList, batch, subdivisions, width, height, anchors):
 	print('--> processing {}'.format(configFile))
 	
 	srcConfigPath = os.path.join(darkhome, cfgs_total[config][0])
@@ -209,25 +213,45 @@ def create_config(darkhome, config, configFile, datasFile, classList, batch, sub
 	
 	filters = (len(classList)+5) * 3
 	
-	file_content = re.sub(r'classes=\w*', 'classes='+str(len(classList)), file_content)
-	file_content = re.sub(r'filters=\w*', 'filters='+str(filters), file_content)
-	file_content = re.sub(r'batch=\w*', 'batch='+str(batch), file_content)
-	file_content = re.sub(r'subdivisions=\w*', 'subdivisions='+str(subdivisions), file_content)
-	file_content = re.sub(r'width=\w*', 'width='+str(width), file_content)
-	file_content = re.sub(r'height=\w*', 'height='+str(height), file_content)
+	file_content = re.sub(r'classes\s*=.*', 'classes='+str(len(classList)), file_content)
+	file_content = re.sub(r'filters\s*=.*', 'filters='+str(filters), file_content)
+	file_content = re.sub(r'batch\s*=.*', 'batch='+str(batch), file_content)
+	file_content = re.sub(r'subdivisions\s*=.*', 'subdivisions='+str(subdivisions), file_content)
+	file_content = re.sub(r'width\s*=.*', 'width='+str(width), file_content)
+	file_content = re.sub(r'height\s*=.*', 'height='+str(height), file_content)
 	max_batches = len(classList)*2000
-	file_content = re.sub(r'max_batches=\w*', 'max_batches='+str(max_batches), file_content)
-	file_content = re.sub(r'steps=\w*', 'steps='+str(max_batches*0.8)+','+str(max_batches*0.9), file_content)
+	file_content = re.sub(r'max_batches\s*=.*', 'max_batches='+str(max_batches), file_content)
+	file_content = re.sub(r'steps\s*=.*', 'steps='+str(int(max_batches*0.8))+','+str(int(max_batches*0.9)), file_content)
+	file_content = re.sub(r'anchors\s*=.*', anchors, file_content)
 	
 	with open(configFile, 'w') as the_file:
 		the_file.write(file_content)
 	the_file.close
 	
+def cauculate_anchors(darkhome, datasFile, numclusters, width, height):
+	print('--> processing {}, {}, {}, {}'.format(datasFile, numclusters, width, height))
+	
+	darknet_path = os.path.join(darkhome, 'darknet')
+	nmap_out = subprocess.run([darknet_path, 'detector', 'calc_anchors', datasFile, '-num_of_clusters', \
+		str(numclusters), '-width', str(width), '-height', str(height)], universal_newlines=False, stdout=subprocess.PIPE)
+		
+	nmap_lines = nmap_out.stdout.splitlines()
+	
+	anchors = 'not found.'
+	for line in nmap_lines:
+		if 'anchors =' in str(line):
+			anchors = line.decode('ascii')
+			
+	print('--> ' + anchors)
+	
+	return anchors
+	
+	
 def show_train_command(darkhome, configFile, datasFile, pretrained, traincommandfile):
 	print('--> preparing command and save to {}'.format(traincommandfile))
 	
 	strCmd = "{} detector train {} {} {} -dont_show -mjpeg_port 8090 -clear -gpus 0".format(\
-		os.path.join(darkhome,'darknet.exe') \
+		os.path.join(darkhome,'darknet.exe'), \
 		datasFile, \
 		configFile, \
 		pretrained)
@@ -263,10 +287,11 @@ if __name__ == '__main__':
 	subdivisions, \
 	width, \
 	height, \
+	numclusters, \
 	classList = ReadParameter(strParameterFile)
 	
-	#print('namesFile : ' + namesFile)
-	#print(classList)
+	#print('numclusters : ' + numclusters)
+	#print(numclusters)
 	
 	# create folder if necessary
 	steps += 1
@@ -304,10 +329,15 @@ if __name__ == '__main__':
 	for eachClass in folder_classes:
 		create_txt(imgFolder[eachClass], txtFile[eachClass])
 		
+	# calculate anchors
+	steps += 1
+	print("[Step {}] Calculate anchors.".format(steps) )
+	anchors = cauculate_anchors(darkhome, datasFile, numclusters, width, height)
+		
 	# generate config file
 	steps += 1
 	print("[Step {}] Generate config file.".format(steps) )
-	create_config(darkhome, config, configFile, datasFile, classList, batch, subdivisions, width, height)
+	create_config(darkhome, config, configFile, datasFile, classList, batch, subdivisions, width, height, anchors)
 
 	# print command
 	steps += 1
