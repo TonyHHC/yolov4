@@ -18,8 +18,8 @@ strParameterFile = 'D:/Project/Tony/Python/yolov4/TX/parameter.xml'
 strLabelingXMLTemplate = 'D:/Project/Tony/Python/yolov4/TX/labeling_template.xml'
 folder_classes = ('train', 'validate', 'test')
 cfgs_total = {
-	"yolov4": ["cfg/yolov4.cfg", "pretrained/yolov4.conv.137"],
-	"yolov4-tiny": ["cfg/yolov4-tiny.cfg", "pretrained/yolov4-tiny.conv.29"],
+	"yolov4": ["cfg/yolov4_tony.cfg", "pretrained/yolov4.conv.137"],
+	"yolov4-tiny": ["cfg/yolov4-tiny_tony.cfg", "pretrained/yolov4-tiny.conv.29"],
 }
 ratio = (0.6, 0.2, 0.2)
 
@@ -100,12 +100,19 @@ def ReadParameter(strFilename='00_parameter.xml'):
 	numclusters = getXmlChildNodeValue(root, 'numclusters')
 	
 	return namesFile, datasFile, configFile, traincommandfile, originalFolder, weightsFolder, xmllabelFolder, imgFolder, txtlabelFolder, txtFile, darkhome, config, pretrained, batch, subdivisions, width, height, numclusters, classList
-	
-def transferYolo( xmlFilepath, img_h, img_w ):
+
+def transferYolo( xmlFilepath, imgFilepath, txtlabelFilepath, classList):
 
 	print("--> processing {}".format(xmlFilepath))
 	
+	if(os.path.isfile(txtlabelFilepath)):
+		os.remove(txtlabelFilepath)
+
 	if(os.path.isfile(xmlFilepath)):
+		img = cv2.imread(imgFilepath)
+		imgShape = img.shape
+		img_h = imgShape[0]
+		img_w = imgShape[1]
 
 		try:
 			#print("minidom.parse " + xmlFilepath)
@@ -145,22 +152,97 @@ def transferYolo( xmlFilepath, img_h, img_w ):
 		tmpArrays = labelXML.getElementsByTagName("ymax")
 		for elem in tmpArrays:
 			labelYmax.append(int(elem.firstChild.data))
+
+		yoloFilename = txtlabelFilepath
+		#print("writeing to {}".format(yoloFilename))
+
+		with open(yoloFilename, 'a') as the_file:
+			i = 0
+			for className in labelName:
+				if(className in classList):
+					classID = classList[className]
+					x = (labelXmin[i] + (labelXmax[i]-labelXmin[i])/2) * 1.0 / img_w
+					y = (labelYmin[i] + (labelYmax[i]-labelYmin[i])/2) * 1.0 / img_h
+					w = (labelXmax[i]-labelXmin[i]) * 1.0 / img_w
+					h = (labelYmax[i]-labelYmin[i]) * 1.0 / img_h
+
+					the_file.write(str(classID) + ' ' + str(x) + ' ' + str(y) + ' ' + str(w) + ' ' + str(h) + '\n')
+					i += 1
+		the_file.close()	
+
+'''
+def transferYolo( xmlFilepath ):
+
+	print("--> processing {}".format(xmlFilepath))
+	
+	if(os.path.isfile(xmlFilepath)):
+
+		try:
+			#print("minidom.parse " + xmlFilepath)
+			labelXML = minidom.parse(xmlFilepath)
+		except:
+			return
+
+		img_w = 0
+		img_h = 0
+		labelName = []
+		labelXmin = []
+		labelYmin = []
+		labelXmax = []
+		labelYmax = []
+		totalW = 0
+		totalH = 0
+		countLabels = 0
+		
+		tmpArrays = labelXML.getElementsByTagName("width")
+		for elem in tmpArrays:
+			img_w = int(elem.firstChild.data)
 			
-		i = 0
-		x = (labelXmin[i] + (labelXmax[i]-labelXmin[i])/2) * 1.0 / img_w
-		y = (labelYmin[i] + (labelYmax[i]-labelYmin[i])/2) * 1.0 / img_h
-		w = (labelXmax[i]-labelXmin[i]) * 1.0 / img_w
-		h = (labelYmax[i]-labelYmin[i]) * 1.0 / img_h
+		tmpArrays = labelXML.getElementsByTagName("height")
+		for elem in tmpArrays:
+			img_h = int(elem.firstChild.data)
+
+		tmpArrays = labelXML.getElementsByTagName("filename")
+		for elem in tmpArrays:
+			filenameImage = elem.firstChild.data
+
+		tmpArrays = labelXML.getElementsByTagName("name")
+		for elem in tmpArrays:
+			labelName.append(str(elem.firstChild.data))
+
+		tmpArrays = labelXML.getElementsByTagName("xmin")
+		for elem in tmpArrays:
+			labelXmin.append(int(elem.firstChild.data))
+
+		tmpArrays = labelXML.getElementsByTagName("ymin")
+		for elem in tmpArrays:
+			labelYmin.append(int(elem.firstChild.data))
+
+		tmpArrays = labelXML.getElementsByTagName("xmax")
+		for elem in tmpArrays:
+			labelXmax.append(int(elem.firstChild.data))
+
+		tmpArrays = labelXML.getElementsByTagName("ymax")
+		for elem in tmpArrays:
+			labelYmax.append(int(elem.firstChild.data))
+
+		print('--> img_w:{}, img_h:{}'.format(img_w, img_h))
 		
-		print('--> (x, y, w, h) : ({}, {}, {}, {})'.format(x, y, w, h))
+		x = (np.asarray(labelXmin) + (np.asarray(labelXmax)-np.asarray(labelXmin))/2) * 1.0 / img_w
+		y = (np.asarray(labelYmin) + (np.asarray(labelYmax)-np.asarray(labelYmin))/2) * 1.0 / img_h
+		w = (np.asarray(labelXmax) - np.asarray(labelXmin)) * 1.0 / img_w
+		h = (np.asarray(labelYmax) - np.asarray(labelYmin)) * 1.0 / img_h
 		
-		return x, y, w, h
+		print('--> (name, x, y, w, h) : ({}, {}, {}, {}, {})'.format(labelName, x, y, w, h))
 		
-def copyimgandyololabeltext(eachImgFile, imgFolder, x, y, w, h):
+		return labelName, x, y, w, h
+		
+def copyimgandyololabeltext(eachImgFile, imgFolder, labelName, x, y, w, h):
 	srcImg = eachImgFile
 	filepath, file_extension = os.path.splitext(srcImg)
 	imgFilebasename = os.path.basename(srcImg)
 	imgFilebasenamewithnoext = imgFilebasename.split('.')[0]
+	srcYoloLabelTxt = filepath + '.txt'
 	tgtImg = os.path.join(imgFolder, imgFilebasename)
 	tgtYoloLabelTxt = os.path.join(imgFolder, imgFilebasenamewithnoext) + '.txt'
 	print('--> tgtImg:{}, tgtYoloLabelTxt:{}'.format(tgtImg, tgtYoloLabelTxt))
@@ -169,16 +251,42 @@ def copyimgandyololabeltext(eachImgFile, imgFolder, x, y, w, h):
 	shutil.copy(srcImg, tgtImg)
 	
 	#
-	classID = 0
-	if imgFilebasename[0] == 'H':
-		classID = 0
-	if imgFilebasename[0] == 'B':
-		classID = 1
-	if imgFilebasename[0] == 'S':
-		classID = 2
 	with open(tgtYoloLabelTxt, 'w') as the_file:
-		the_file.write(str(classID) + ' ' + str(x) + ' ' + str(y) + ' ' + str(w) + ' ' + str(h) + '\n')
+		#the_file.write('0 {} {} {} {}\n'.format(x[0], y[0], w[0], h[0]))
+		#the_file.write('1 {} {} {} {}\n'.format(x[1], y[1], w[1], h[1]))
+		the_file.write('2 {} {} {} {}\n'.format(x[2], y[2], w[2], h[2]))
+		classID = 0
+		if imgFilebasename[0] == 'B':
+			the_file.write('0 {} {} {} {}\n'.format(x[0], y[0], w[0], h[0]))
+		if imgFilebasename[0] == 'S':
+			the_file.write('1 {} {} {} {}\n'.format(x[1], y[1], w[1], h[1]))
 	the_file.close
+'''
+
+def copyimgandtransferyolotext(imgSrcFile, tgtImgFolder, tgtTxtFolder, classlist):
+	# imgSrcFile = C:\Temp\Original\abc.png
+	
+	print("--> processing {}".format(imgSrcFile))
+	
+	# get C:\Temp\Original\abc, png
+	imgSrcFilePath, imgSrcFileExtension = os.path.splitext(imgSrcFile)
+	# get abc.png
+	imgSrcFilebasename = os.path.basename(imgSrcFile)
+	# get abc
+	imgSrcFilebasenameWithoutExt = imgSrcFilebasename.split('.')[0]
+	# get C:\Temp\Original\abc.xml
+	xmlSrcFile = imgSrcFilePath + ".xml"
+	# get C:\Temp\Train\abc.png
+	imgTgtFile = os.path.join(tgtImgFolder, imgSrcFilebasename)
+	# get C:\Temp\Train\abc.txt
+	txtTgtFile = os.path.join(tgtImgFolder, imgSrcFilebasenameWithoutExt+'.txt')
+	
+	# copy
+	shutil.copy(imgSrcFile, imgTgtFile)
+	# yolo text
+	#transferYolo( xmlFilepath, imgFilepath, txtlabelFilepath, classList)
+	transferYolo( xmlSrcFile, imgSrcFile, txtTgtFile, classList)
+	
 		
 def create_folder():
 	for key in folder_classes:
@@ -242,12 +350,14 @@ def create_config(darkhome, config, configFile, datasFile, classList, batch, sub
 	filters = (len(classList)+5) * 3
 	
 	file_content = re.sub(r'classes\s*=.*', 'classes='+str(len(classList)), file_content)
-	file_content = re.sub(r'filters\s*=.*', 'filters='+str(filters), file_content)
+	#file_content = re.sub(r'filters\s*=.*', 'filters='+str(filters), file_content)
+	file_content = re.sub(r'{FILTERS}', str(filters), file_content)
 	file_content = re.sub(r'batch\s*=.*', 'batch='+str(batch), file_content)
 	file_content = re.sub(r'subdivisions\s*=.*', 'subdivisions='+str(subdivisions), file_content)
 	file_content = re.sub(r'width\s*=.*', 'width='+str(width), file_content)
 	file_content = re.sub(r'height\s*=.*', 'height='+str(height), file_content)
-	max_batches = len(classList)*2000
+	#max_batches = len(classList)*2000
+	max_batches = len(classList)*2000 if len(classList) > 1 else 4000
 	file_content = re.sub(r'max_batches\s*=.*', 'max_batches='+str(max_batches), file_content)
 	file_content = re.sub(r'steps\s*=.*', 'steps='+str(int(max_batches*0.8))+','+str(int(max_batches*0.9)), file_content)
 	file_content = re.sub(r'anchors\s*=.*', anchors, file_content)
@@ -278,11 +388,17 @@ def cauculate_anchors(darkhome, datasFile, numclusters, width, height):
 def show_train_command(darkhome, configFile, datasFile, pretrained, traincommandfile):
 	print('--> preparing command and save to {}'.format(traincommandfile))
 	
+	'''
 	strCmd = "{} detector train {} {} {} -dont_show -mjpeg_port 8090 -clear -gpus 0".format(\
 		os.path.join(darkhome,'darknet.exe'), \
 		datasFile, \
 		configFile, \
 		pretrained)
+	'''
+	strCmd = "{} detector train {} {} -dont_show -mjpeg_port 8090 -clear -gpus 0".format(\
+		os.path.join(darkhome,'darknet.exe'), \
+		datasFile, \
+		configFile)
 		
 	with open(traincommandfile, 'w') as the_file:
 		the_file.write('echo off\n')
@@ -332,7 +448,7 @@ if __name__ == '__main__':
 	
 	#print('numclusters : ' + numclusters)
 	#print(numclusters)
-	
+
 	# create folder if necessary
 	steps += 1
 	print("[Step {}] Create folder if necessary.".format(steps) )
@@ -342,6 +458,13 @@ if __name__ == '__main__':
 	steps += 1
 	print("[Step {}] Split original data.".format(steps) )
 	
+	listTmp = glob.glob(os.path.join(originalFolder, '*.png'))
+	#print(listTmp)
+	random.shuffle(listTmp)
+	indices_for_splitting = [int(len(listTmp)*ratio[0]), int(len(listTmp)*(ratio[0]+ratio[1]))]
+	train, val, test = np.split(listTmp, indices_for_splitting)
+	
+	'''
 	listB = glob.glob(os.path.join(originalFolder, 'B_*.bmp'))
 	listS = glob.glob(os.path.join(originalFolder, 'S_*.bmp'))
 	listH = glob.glob(os.path.join(originalFolder, 'H_*.bmp'))
@@ -360,26 +483,34 @@ if __name__ == '__main__':
 	train = train_B.tolist() + train_S.tolist() + train_H.tolist()
 	val = val_B.tolist() + val_S.tolist() + val_H.tolist()
 	test = test_B.tolist() + test_S.tolist() + test_H.tolist()
-	
-	# read xml template
-	steps += 1
-	print("[Step {}] Read xml template.".format(steps) )
-	labelXML = minidom.parse(strLabelingXMLTemplate)
-	
+	'''
+
+	'''
 	# get yolo label txt x, y, w, h
 	steps += 1
 	print("[Step {}] Get yolo label txt x, y, w, h.".format(steps) )
-	x, y, w, h = transferYolo( strLabelingXMLTemplate, int(width), int(height) )
+	labelName, x, y, w, h = transferYolo( strLabelingXMLTemplate )
 	
 	# copy image to train/validate/test and generate yolo label txt.
 	steps += 1
 	print("[Step {}] Copy image to train/validate/test and generate yolo label txt.".format(steps))
 	for eachImgFile in train:
-		copyimgandyololabeltext(eachImgFile, imgFolder['train'], x, y, w, h)
+		copyimgandyololabeltext(eachImgFile, imgFolder['train'], labelName, x, y, w, h)
 	for eachImgFile in val:
-		copyimgandyololabeltext(eachImgFile, imgFolder['validate'], x, y, w, h)
+		copyimgandyololabeltext(eachImgFile, imgFolder['validate'], labelName, x, y, w, h)
 	for eachImgFile in test:
-		copyimgandyololabeltext(eachImgFile, imgFolder['test'], x, y, w, h)
+		copyimgandyololabeltext(eachImgFile, imgFolder['test'], labelName, x, y, w, h)
+	'''
+	
+	# copy img and create yolo txt
+	steps += 1
+	print("[Step {}] Copy img and create yolo txt.".format(steps) )
+	for eachImgFile in train:
+		copyimgandtransferyolotext(eachImgFile, imgFolder['train'], imgFolder['train'], classList)
+	for eachImgFile in val:
+		copyimgandtransferyolotext(eachImgFile, imgFolder['validate'], imgFolder['validate'], classList)
+	for eachImgFile in test:
+		copyimgandtransferyolotext(eachImgFile, imgFolder['test'], imgFolder['test'], classList)
 
 	# generate names file
 	steps += 1
@@ -411,3 +542,7 @@ if __name__ == '__main__':
 	steps += 1
 	print("[Step {}] Generate training command.".format(steps) )
 	show_train_command(darkhome, configFile, datasFile, pretrained, traincommandfile)
+
+
+
+
