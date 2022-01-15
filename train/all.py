@@ -21,7 +21,7 @@ cfgs_total = {
 	"yolov4": ["cfg/yolov4_tony.cfg", "pretrained/yolov4.conv.137"],
 	"yolov4-tiny": ["cfg/yolov4-tiny_tony.cfg", "pretrained/yolov4-tiny.conv.29"],
 }
-ratio = (0.6, 0.2, 0.2)
+ratio = (0.8, 0.2)
 
 originalFolder = ''
 xmllabelFolder = {}
@@ -422,7 +422,13 @@ def show_train_command(darkhome, configFile, datasFile, pretrained, traincommand
 	
 if __name__ == '__main__':
 	steps = 0
-		
+	
+	'''
+	z = [4,2,3,1,5]
+	z.sort()
+	print(z[:len(z)-2])
+	'''
+	
 	# read parameter
 	steps += 1
 	print("[Step {}] Read parameter.".format(steps) )
@@ -458,49 +464,19 @@ if __name__ == '__main__':
 	steps += 1
 	print("[Step {}] Split original data.".format(steps) )
 	
-	listTmp = glob.glob(os.path.join(originalFolder, '*.png'))
-	#print(listTmp)
+	listImg = glob.glob(os.path.join(originalFolder, '*.png'))
+	listImg.sort()
+	test = listImg[-250:]
+	listTmp = listImg[:-250]
+	#print(listImg)
 	random.shuffle(listTmp)
-	indices_for_splitting = [int(len(listTmp)*ratio[0]), int(len(listTmp)*(ratio[0]+ratio[1]))]
-	train, val, test = np.split(listTmp, indices_for_splitting)
-	
-	'''
-	listB = glob.glob(os.path.join(originalFolder, 'B_*.bmp'))
-	listS = glob.glob(os.path.join(originalFolder, 'S_*.bmp'))
-	listH = glob.glob(os.path.join(originalFolder, 'H_*.bmp'))
-	
-	random.shuffle(listB)
-	random.shuffle(listS)
-	random.shuffle(listH)
-	
-	indices_for_splitting = [int(len(listB)*ratio[0]), int(len(listB)*(ratio[0]+ratio[1]))]
-	train_B, val_B, test_B = np.split(listB, indices_for_splitting)
-	indices_for_splitting = [int(len(listS)*ratio[0]), int(len(listS)*(ratio[0]+ratio[1]))]
-	train_S, val_S, test_S = np.split(listS, indices_for_splitting)
-	indices_for_splitting = [int(len(listH)*ratio[0]), int(len(listH)*(ratio[0]+ratio[1]))]
-	train_H, val_H, test_H = np.split(listH, indices_for_splitting)
-	
-	train = train_B.tolist() + train_S.tolist() + train_H.tolist()
-	val = val_B.tolist() + val_S.tolist() + val_H.tolist()
-	test = test_B.tolist() + test_S.tolist() + test_H.tolist()
-	'''
-
-	'''
-	# get yolo label txt x, y, w, h
-	steps += 1
-	print("[Step {}] Get yolo label txt x, y, w, h.".format(steps) )
-	labelName, x, y, w, h = transferYolo( strLabelingXMLTemplate )
-	
-	# copy image to train/validate/test and generate yolo label txt.
-	steps += 1
-	print("[Step {}] Copy image to train/validate/test and generate yolo label txt.".format(steps))
-	for eachImgFile in train:
-		copyimgandyololabeltext(eachImgFile, imgFolder['train'], labelName, x, y, w, h)
-	for eachImgFile in val:
-		copyimgandyololabeltext(eachImgFile, imgFolder['validate'], labelName, x, y, w, h)
-	for eachImgFile in test:
-		copyimgandyololabeltext(eachImgFile, imgFolder['test'], labelName, x, y, w, h)
-	'''
+	#indices_for_splitting = [int(len(listTmp)*ratio[0]), int(len(listTmp)*(ratio[0]+ratio[1]))]
+	#listTmp = [1,2,3,4,5,6,7,8]
+	#print(listTmp[-2:])
+	#print(listTmp[:-2])
+	indices_for_splitting = [int(len(listTmp)*ratio[0])]
+	#train, val, test = np.split(listTmp, indices_for_splitting)
+	train, val = np.split(listTmp, indices_for_splitting)
 	
 	# copy img and create yolo txt
 	steps += 1
@@ -542,7 +518,6 @@ if __name__ == '__main__':
 	steps += 1
 	print("[Step {}] Generate training command.".format(steps) )
 	show_train_command(darkhome, configFile, datasFile, pretrained, traincommandfile)
-
 
 
 
