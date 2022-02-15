@@ -1,0 +1,39 @@
+<prepare_train_data>
+	<darkhome>D:/Project/Tony/Python/yolov4/darknet/darknet/build/darknet/x64</darkhome>
+	<namesFile>D:/Project/Tony/Python/yolov4/TX.HA/config/tx.names</namesFile>
+	<datasFile>D:/Project/Tony/Python/yolov4/TX.HA/config/tx.data</datasFile>
+	<configFile>D:/Project/Tony/Python/yolov4/TX.HA/config/tx.cfg</configFile>
+	<weightsFolder>D:/Project/Tony/Python/yolov4/TX.HA/config/weights</weightsFolder>
+	<originalFolder>D:/Project/Tony/Python/yolov4/TX.HA/original</originalFolder>
+	<train>
+		<imgFolder>D:/Project/Tony/Python/yolov4/TX.HA/train/images</imgFolder>
+		<xmllabelFolder></xmllabelFolder>
+		<txtlabelFolder>D:/Project/Tony/Python/yolov4/TX.HA/train/images</txtlabelFolder>
+		<txtFile>D:/Project/Tony/Python/yolov4/TX.HA/config/train.txt</txtFile>
+	</train>
+	<validate>
+		<imgFolder>D:/Project/Tony/Python/yolov4/TX.HA/validate/images</imgFolder>
+		<xmllabelFolder></xmllabelFolder>
+		<txtlabelFolder>D:/Project/Tony/Python/yolov4/TX.HA/validate/images</txtlabelFolder>
+		<txtFile>D:/Project/Tony/Python/yolov4/TX.HA/config/validate.txt</txtFile>
+	</validate>
+	<test>
+		<imgFolder>D:/Project/Tony/Python/yolov4/TX.HA/test/images</imgFolder>
+		<xmllabelFolder></xmllabelFolder>
+		<txtlabelFolder>D:/Project/Tony/Python/yolov4/TX.HA/test/images</txtlabelFolder>
+		<txtFile>D:/Project/Tony/Python/yolov4/TX.HA/config/test.txt</txtFile>
+	</test>
+	<traincommandfile>D:/Project/Tony/Python/yolov4/TX.HA/config/train.bat</traincommandfile>
+	<config>yolov4-tiny</config> <!--> 選擇一個config : yolov4, yolov4-tiny <-->
+	<pretrained>D:/Project/Tony/Python/yolov4/darknet/darknet/build/darknet/x64/pretrained/yolov4-tiny.conv.29</pretrained>
+	<class>
+		<name>Buy</name>
+		<name>Sell</name>
+	</class>
+	<batch>64</batch>
+	<subdivisions>32</subdivisions>
+	<width>512</width> <!--> 32 倍數 160<-->
+	<height>512</height> <!--> 32 倍數 160<-->
+	<numclusters>6</numclusters>
+	
+</prepare_train_data>
